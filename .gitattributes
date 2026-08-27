@@ -1,0 +1,17 @@
+# Normalise line endings so the repo stays LF regardless of the OS used.
+* text=auto eol=lf
+
+# Binaries must never be touched by line-ending conversion.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.icns binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+
+# Lockfiles are generated; keep them out of diff review noise.
+pnpm-lock.yaml linguist-generated=true
+src-tauri/Cargo.lock linguist-generated=true

@@ -1,0 +1,171 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter-tight";
+@import "@fontsource-variable/jetbrains-mono";
+
+/*
+ * Dark cinematic — a single committed look, not a themeable surface. The app is
+ * a desktop tool for video work, so the palette stays low-luminance and the
+ * accents carry meaning: amber = action, cyan = reference, rose = invalid.
+ */
+@theme {
+  --color-base: #0a0b0d;
+  --color-panel: #101216;
+  --color-elevated: #16191f;
+  --color-raised: #1c2027;
+  --color-line: #23272f;
+  --color-line-strong: #30353f;
+
+  --color-ink: #e8eaef;
+  --color-ink-muted: #98a0ae;
+  --color-ink-faint: #626a78;
+
+  --color-amber: #f5a524;
+  --color-amber-dim: #b97a15;
+  --color-cyan: #22d3ee;
+  --color-cyan-dim: #0e7f92;
+  --color-danger: #f43f5e;
+  --color-warn: #fbbf24;
+  --color-ok: #34d399;
+
+  --font-sans: "Inter Tight Variable", "Inter Tight", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", "Cascadia Mono", ui-monospace, monospace;
+
+  --radius-panel: 10px;
+
+  --ease-out-quick: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+    min-width: 0;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-base);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.5;
+    font-feature-settings: "cv05" 1, "ss01" 1;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    /* A desktop app should not feel like a document. */
+    user-select: none;
+    cursor: default;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"],
+  .selectable {
+    user-select: text;
+    cursor: text;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-amber) 32%, transparent);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-amber);
+    outline-offset: 1px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #454b57;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* Tabular figures everywhere a timestamp or count can shift layout. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* Faint film-grain-ish top light so large dark areas are not flat. */
+  .stage-glow {
+    background-image: radial-gradient(
+      120% 80% at 50% -20%,
+      color-mix(in oklab, var(--color-amber) 6%, transparent),
+      transparent 60%
+    );
+  }
+
+  .panel {
+    background-color: var(--color-panel);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-panel);
+  }
+
+  /* Radix overlays: one short, shared entrance. */
+  .pop-in {
+    animation: pop-in 130ms var(--ease-out-quick);
+  }
+
+  .fade-in {
+    animation: fade-in 130ms var(--ease-out-quick);
+  }
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(-3px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .rail-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
