@@ -1,4 +1,5 @@
 import type { MaestroRunDraft } from "@/core/maestro/types";
+import type { H3SkillProfile } from "@/core/h3/skills";
 
 /**
  * Domain model for MiniMax H3 prompting.
@@ -76,6 +77,10 @@ export interface ReferenceItem {
   fileName: string;
   kind: MediaKind;
   sizeBytes: number;
+  /** App-managed immutable original used for portable projects. */
+  assetId?: string;
+  sha256?: string;
+  available?: boolean;
   width?: number;
   height?: number;
   /** Data URL thumbnail, images only. */
@@ -175,8 +180,13 @@ export interface MultiWindowConfig {
 }
 
 export interface Project {
+  schemaVersion: number;
   id: string;
   name: string;
+  createdAt: number;
+  videoSeed: number;
+  /** Official H3 technical base plus at most one adapted style workflow. */
+  h3Skill: H3SkillProfile;
   brief: Brief;
   references: ReferenceItem[];
   subjects: SubjectDef[];
@@ -185,10 +195,23 @@ export interface Project {
   multiWindow: MultiWindowConfig;
   /** Optional Maestro execution recipe. Old/offline projects omit it. */
   maestro?: MaestroRunDraft;
+  outputs: ProjectOutput[];
   /** Last rendered prompt, kept so reopening a project shows the result. */
   lastPrompt?: string;
   lastWindows?: string[];
   updatedAt: number;
+}
+
+export interface ProjectOutput {
+  id: string;
+  jobId?: string;
+  fileName: string;
+  path: string;
+  sizeBytes: number;
+  sha256: string;
+  available: boolean;
+  seed: number;
+  createdAt: number;
 }
 
 // ---- computed reference numbering -------------------------------------------

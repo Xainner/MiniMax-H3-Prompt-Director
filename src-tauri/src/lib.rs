@@ -2,8 +2,9 @@ mod commands;
 mod db;
 mod error;
 mod llm;
-mod media;
 mod maestro;
+mod media;
+mod project_package;
 mod secrets;
 mod settings;
 
@@ -40,8 +41,14 @@ pub fn run() {
             commands::load_project,
             commands::save_project,
             commands::delete_project,
+            commands::ingest_project_asset,
+            commands::project_asset_available,
+            commands::preview_project_package,
+            commands::export_project_package,
+            commands::import_project_package,
             commands::add_history,
             commands::list_history,
+            commands::copy_project_history,
             commands::list_maestro_instances,
             commands::save_maestro_instance,
             commands::delete_maestro_instance,

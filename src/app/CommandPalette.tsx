@@ -10,13 +10,20 @@ import {
   Copy,
   Terminal,
   LayoutGrid,
+  Archive,
+  Upload,
+  House,
+  CopyPlus,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { open } from "@tauri-apps/plugin-dialog";
 import { errorMessage } from "@/lib/ipc";
+import { useApp } from "@/stores/appStore";
 import { useProject } from "@/stores/projectStore";
 import { useUi } from "@/stores/uiStore";
+import { useProjectTransition } from "@/stores/projectTransitionStore";
+import { Dialog, DialogContent } from "@/components/ui/overlays";
 
 interface Action {
   id: string;
@@ -26,11 +33,16 @@ interface Action {
   icon: ReactNode;
   run: () => void | Promise<void>;
   group: string;
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
 export function CommandPalette() {
   const openPalette = useUi((s) => s.paletteOpen);
   const setUi = useUi((s) => s.set);
+  const openProjects = useUi((s) => s.openProjects);
+  const requestTransition = useProjectTransition((s) => s.request);
+  const view = useApp((s) => s.view);
   const project = useProject();
 
   const actions: Action[] = [
@@ -39,15 +51,19 @@ export function CommandPalette() {
       group: "Proyecto",
       label: "Nuevo proyecto",
       icon: <FilePlus2 />,
-      run: () => project.reset(),
+      run: () => requestTransition(() => { useProject.getState().reset(); useApp.getState().setView("home"); }),
     },
     {
       id: "open",
       group: "Proyecto",
       label: "Abrir proyecto…",
       icon: <FolderOpen />,
-      run: () => setUi("projectsOpen", true),
+      run: () => openProjects("list"),
     },
+    { id: "save-as", group: "Proyecto", label: "Guardar como…", icon: <CopyPlus />, run: () => openProjects("save-as"), disabled: view === "home", disabledReason: "Abrí o creá un proyecto primero" },
+    { id: "import", group: "Proyecto", label: "Importar .directorproj…", icon: <Upload />, run: () => openProjects("import") },
+    { id: "export", group: "Proyecto", label: "Exportar .directorproj…", icon: <Archive />, run: () => openProjects("export"), disabled: view === "home", disabledReason: "No hay un proyecto activo" },
+    { id: "home", group: "Proyecto", label: "Volver al inicio", icon: <House />, run: () => requestTransition(() => { useProject.getState().reset(); useApp.getState().setView("home"); }), disabled: view === "home", disabledReason: "Ya estás en el inicio" },
     {
       id: "save",
       group: "Proyecto",
@@ -58,6 +74,8 @@ export function CommandPalette() {
         await project.save();
         toast.success("Proyecto guardado");
       },
+      disabled: view === "home",
+      disabledReason: "No hay un proyecto activo",
     },
     {
       id: "add-ref",
@@ -70,6 +88,8 @@ export function CommandPalette() {
         if (!selected) return;
         await project.addReferences(Array.isArray(selected) ? selected : [selected]);
       },
+      disabled: view === "home",
+      disabledReason: "Abrí o creá un proyecto primero",
     },
     {
       id: "analyze",
@@ -84,6 +104,8 @@ export function CommandPalette() {
           toast.error("El análisis falló", { description: errorMessage(e) });
         }
       },
+      disabled: view === "home",
+      disabledReason: "No hay referencias de un proyecto activo",
     },
     {
       id: "generate",
@@ -98,6 +120,8 @@ export function CommandPalette() {
           toast.error("No se pudo generar", { description: errorMessage(e) });
         }
       },
+      disabled: view === "home",
+      disabledReason: "Abrí o creá un proyecto primero",
     },
     {
       id: "generate-windows",
@@ -116,6 +140,8 @@ export function CommandPalette() {
           toast.error("No se pudo generar", { description: errorMessage(e) });
         }
       },
+      disabled: view === "home" || !project.project.multiWindow.enabled,
+      disabledReason: view === "home" ? "Abrí o creá un proyecto primero" : "Activá multi-window en Brief",
     },
     {
       id: "copy",
@@ -132,6 +158,8 @@ export function CommandPalette() {
         await navigator.clipboard.writeText(text);
         toast.success("Prompt copiado");
       },
+      disabled: view === "home" || !project.generation.prompt,
+      disabledReason: view === "home" ? "No hay un proyecto activo" : "Generá un prompt primero",
     },
     {
       id: "console",
@@ -153,15 +181,11 @@ export function CommandPalette() {
   const groups = [...new Set(actions.map((a) => a.group))];
 
   return (
-    <Command.Dialog
-      open={openPalette}
-      onOpenChange={(value) => setUi("paletteOpen", value)}
-      label="Paleta de comandos"
-      className="fixed inset-0 z-50"
-      overlayClassName="fade-in fixed inset-0 bg-black/70 backdrop-blur-[2px]"
-      contentClassName="pop-in fixed left-1/2 top-[18%] w-[min(560px,92vw)] -translate-x-1/2 overflow-hidden rounded-xl border border-line-strong bg-panel shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)]"
-    >
+    <Dialog open={openPalette} onOpenChange={(value) => setUi("paletteOpen", value)}>
+      <DialogContent title="Comandos" description="Buscá una acción o navegá con las flechas." className="w-[min(560px,92vw)] overflow-hidden p-0">
+      <Command label="Paleta de comandos" loop className="bg-panel">
       <Command.Input
+        autoFocus
         placeholder="Buscar acción…"
         className="h-11 w-full border-b border-line bg-transparent px-4 text-sm text-ink outline-none placeholder:text-ink-faint"
       />
@@ -181,14 +205,18 @@ export function CommandPalette() {
                 <Command.Item
                   key={action.id}
                   value={`${action.label} ${action.group}`}
+                  disabled={action.disabled}
                   onSelect={() => {
                     setUi("paletteOpen", false);
                     void action.run();
                   }}
-                  className="flex cursor-default items-center gap-2.5 rounded-md px-2 py-2 text-xs text-ink-muted data-[selected=true]:bg-raised data-[selected=true]:text-ink [&_svg]:size-3.5 [&_svg]:text-ink-faint"
+                  className="flex cursor-default items-center gap-2.5 rounded-md px-2 py-2 text-xs text-ink-muted data-[disabled=true]:opacity-35 data-[selected=true]:bg-raised data-[selected=true]:text-ink [&_svg]:size-3.5 [&_svg]:text-ink-faint"
                 >
                   {action.icon}
                   <span className="flex-1">{action.label}</span>
+                  {action.disabled && action.disabledReason ? (
+                    <span className="max-w-44 truncate text-[9.5px] text-ink-faint">{action.disabledReason}</span>
+                  ) : null}
                   {action.shortcut ? (
                     <kbd className="rounded border border-line-strong bg-base px-1 font-mono text-[10px] text-ink-faint">
                       {action.shortcut}
@@ -199,6 +227,8 @@ export function CommandPalette() {
           </Command.Group>
         ))}
       </Command.List>
-    </Command.Dialog>
+      </Command>
+      </DialogContent>
+    </Dialog>
   );
 }

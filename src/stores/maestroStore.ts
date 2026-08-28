@@ -82,6 +82,8 @@ export const useMaestro = create<MaestroState>((set, get) => ({
     if (!capabilities || capabilities.modelType !== draft.modelType) {
       throw new Error("Las capacidades del modelo Maestro no están cargadas.");
     }
+    const missing = project.references.filter((reference) => reference.available === false);
+    if (missing.length > 0) throw new Error(`Relocalizá ${missing.length} referencias faltantes antes de enviar a Maestro.`);
     const triggerErrors = validateTriggerPlacements(windows, loras, draft.loras);
     if (triggerErrors.length > 0) throw new Error(triggerErrors.join(" "));
     set({ submitting: true, error: null });

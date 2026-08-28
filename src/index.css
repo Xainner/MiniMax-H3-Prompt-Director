@@ -1,44 +1,193 @@
 @import "tailwindcss";
-@import "@fontsource-variable/inter-tight";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
 @import "@fontsource-variable/jetbrains-mono";
 
-/*
- * Dark cinematic — a single committed look, not a themeable surface. The app is
- * a desktop tool for video work, so the palette stays low-luminance and the
- * accents carry meaning: amber = action, cyan = reference, rose = invalid.
- */
-@theme {
-  --color-base: #0a0b0d;
-  --color-panel: #101216;
-  --color-elevated: #16191f;
-  --color-raised: #1c2027;
-  --color-line: #23272f;
-  --color-line-strong: #30353f;
+@custom-variant dark (&:is(.dark *));
 
-  --color-ink: #e8eaef;
-  --color-ink-muted: #98a0ae;
-  --color-ink-faint: #626a78;
-
-  --color-amber: #f5a524;
-  --color-amber-dim: #b97a15;
-  --color-cyan: #22d3ee;
-  --color-cyan-dim: #0e7f92;
-  --color-danger: #f43f5e;
-  --color-warn: #fbbf24;
-  --color-ok: #34d399;
-
-  --font-sans: "Inter Tight Variable", "Inter Tight", "Segoe UI", system-ui, sans-serif;
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: "Geist Variable", "Geist", "Segoe UI", system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", "Cascadia Mono", ui-monospace, monospace;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 
-  --radius-panel: 10px;
-
+  /*
+   * Legacy Director tokens (v1 panels). They now point at the base-nova
+   * palette so the old panels blend in while the migration runs.
+   */
+  --color-base: var(--legacy-base);
+  --color-panel: var(--legacy-panel);
+  --color-elevated: var(--legacy-elevated);
+  --color-raised: var(--legacy-raised);
+  --color-line: var(--legacy-line);
+  --color-line-strong: var(--legacy-line-strong);
+  --color-ink: var(--legacy-ink);
+  --color-ink-muted: var(--legacy-ink-muted);
+  --color-ink-faint: var(--legacy-ink-faint);
+  --color-amber: var(--legacy-amber);
+  --color-amber-dim: var(--legacy-amber-dim);
+  --color-cyan: var(--legacy-cyan);
+  --color-cyan-dim: var(--legacy-cyan-dim);
+  --color-danger: var(--destructive);
+  --color-warn: var(--legacy-warn);
+  --color-ok: var(--success);
+  --radius-panel: calc(var(--radius) * 0.9);
   --ease-out-quick: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root {
+  --background: oklch(0.985 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.55 0.13 70);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --success: oklch(0.55 0.14 165);
+  --success-foreground: oklch(0.985 0.01 165);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.62 0.14 78);
+  --chart-2: oklch(0.6 0.11 210);
+  --chart-3: oklch(0.55 0.18 295);
+  --chart-4: oklch(0.55 0.2 10);
+  --chart-5: oklch(0.55 0.13 165);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.55 0.13 70);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+  --legacy-base: oklch(0.97 0 0);
+  --legacy-panel: oklch(1 0 0);
+  --legacy-elevated: oklch(0.97 0 0);
+  --legacy-raised: oklch(0.94 0 0);
+  --legacy-line: oklch(0.9 0 0);
+  --legacy-line-strong: oklch(0.82 0 0);
+  --legacy-ink: oklch(0.2 0 0);
+  --legacy-ink-muted: oklch(0.5 0 0);
+  --legacy-ink-faint: oklch(0.65 0 0);
+  --legacy-amber: oklch(0.62 0.14 78);
+  --legacy-amber-dim: oklch(0.5 0.1 78);
+  --legacy-cyan: oklch(0.6 0.11 210);
+  --legacy-cyan-dim: oklch(0.45 0.08 210);
+  --legacy-warn: oklch(0.62 0.14 85);
+}
+
+.dark {
+  /* Dark cinematic, warm hue: the studio look, now in oklch. */
+  --background: oklch(0.128 0.01 75);
+  --foreground: oklch(0.94 0.01 80);
+  --card: oklch(0.165 0.012 75);
+  --card-foreground: oklch(0.94 0.01 80);
+  --popover: oklch(0.185 0.014 75);
+  --popover-foreground: oklch(0.94 0.01 80);
+  --primary: oklch(0.8 0.155 78);
+  --primary-foreground: oklch(0.22 0.05 78);
+  --secondary: oklch(0.225 0.018 76);
+  --secondary-foreground: oklch(0.93 0.01 78);
+  --muted: oklch(0.205 0.012 75);
+  --muted-foreground: oklch(0.67 0.02 76);
+  --accent: oklch(0.25 0.03 78);
+  --accent-foreground: oklch(0.95 0.02 78);
+  --destructive: oklch(0.64 0.22 25);
+  --success: oklch(0.78 0.15 165);
+  --success-foreground: oklch(0.18 0.04 165);
+  --border: oklch(0.85 0.04 78 / 10%);
+  --input: oklch(0.9 0.03 78 / 12%);
+  --ring: oklch(0.8 0.155 78 / 55%);
+  --chart-1: oklch(0.82 0.155 78);
+  --chart-2: oklch(0.78 0.13 200);
+  --chart-3: oklch(0.68 0.21 295);
+  --chart-4: oklch(0.64 0.24 10);
+  --chart-5: oklch(0.75 0.15 165);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.148 0.012 75);
+  --sidebar-foreground: oklch(0.94 0.01 80);
+  --sidebar-primary: oklch(0.8 0.155 78);
+  --sidebar-primary-foreground: oklch(0.22 0.05 78);
+  --sidebar-accent: oklch(0.22 0.02 76);
+  --sidebar-accent-foreground: oklch(0.95 0.02 78);
+  --sidebar-border: oklch(0.85 0.04 78 / 8%);
+  --sidebar-ring: oklch(0.8 0.155 78 / 55%);
+  --legacy-base: oklch(0.128 0.01 75);
+  --legacy-panel: oklch(0.165 0.012 75);
+  --legacy-elevated: oklch(0.19 0.014 75);
+  --legacy-raised: oklch(0.235 0.016 76);
+  --legacy-line: oklch(0.27 0.014 76);
+  --legacy-line-strong: oklch(0.34 0.018 76);
+  --legacy-ink: oklch(0.94 0.01 80);
+  --legacy-ink-muted: oklch(0.67 0.02 76);
+  --legacy-ink-faint: oklch(0.51 0.016 76);
+  --legacy-amber: oklch(0.82 0.155 78);
+  --legacy-amber-dim: oklch(0.62 0.11 78);
+  --legacy-cyan: oklch(0.8 0.12 200);
+  --legacy-cyan-dim: oklch(0.52 0.09 210);
+  --legacy-warn: oklch(0.83 0.15 85);
 }
 
 @layer base {
   * {
-    border-color: var(--color-line);
+    @apply border-border outline-ring/50;
     min-width: 0;
+  }
+
+  html {
+    @apply font-sans;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, currentColor 18%, transparent) transparent;
   }
 
   html,
@@ -48,18 +197,19 @@
   }
 
   body {
+    @apply bg-background text-foreground;
     margin: 0;
-    background-color: var(--color-base);
-    color: var(--color-ink);
-    font-family: var(--font-sans);
     font-size: 13px;
     line-height: 1.5;
-    font-feature-settings: "cv05" 1, "ss01" 1;
     -webkit-font-smoothing: antialiased;
     overflow: hidden;
     /* A desktop app should not feel like a document. */
     user-select: none;
     cursor: default;
+    background-image:
+      radial-gradient(1100px 620px at 82% -12%, color-mix(in oklab, var(--primary) 6%, transparent), transparent),
+      radial-gradient(900px 540px at -12% 112%, color-mix(in oklab, var(--chart-2) 5%, transparent), transparent);
+    background-attachment: fixed;
   }
 
   input,
@@ -71,34 +221,36 @@
   }
 
   ::selection {
-    background-color: color-mix(in oklab, var(--color-amber) 32%, transparent);
-    color: var(--color-ink);
-  }
-
-  :focus-visible {
-    outline: 2px solid var(--color-amber);
-    outline-offset: 1px;
+    background: color-mix(in oklab, var(--primary) 32%, transparent);
+    color: var(--foreground);
   }
 
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--color-line-strong);
-    border: 3px solid transparent;
-    background-clip: content-box;
+    background: color-mix(in oklab, var(--foreground) 14%, transparent);
     border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #454b57;
-    background-clip: content-box;
+    background-color: color-mix(in oklab, var(--primary) 40%, transparent);
   }
   ::-webkit-scrollbar-corner {
     background: transparent;
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 
   /* Tabular figures everywhere a timestamp or count can shift layout. */
@@ -108,22 +260,22 @@
 }
 
 @layer components {
-  /* Faint film-grain-ish top light so large dark areas are not flat. */
+  /* Faint top light so large dark areas are not flat. */
   .stage-glow {
     background-image: radial-gradient(
       120% 80% at 50% -20%,
-      color-mix(in oklab, var(--color-amber) 6%, transparent),
+      color-mix(in oklab, var(--primary) 5%, transparent),
       transparent 60%
     );
   }
 
   .panel {
-    background-color: var(--color-panel);
-    border: 1px solid var(--color-line);
+    background-color: var(--legacy-panel);
+    border: 1px solid var(--legacy-line);
     border-radius: var(--radius-panel);
   }
 
-  /* Radix overlays: one short, shared entrance. */
+  /* Legacy Radix overlays: one short, shared entrance. */
   .pop-in {
     animation: pop-in 130ms var(--ease-out-quick);
   }
@@ -157,7 +309,7 @@
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--color-ink-faint);
+    color: var(--legacy-ink-faint);
   }
 }
 

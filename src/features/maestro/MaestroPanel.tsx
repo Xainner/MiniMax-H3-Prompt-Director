@@ -20,7 +20,7 @@ import type {
   MaestroTurboPreset,
   MaestroRunDraft,
 } from "@/core/maestro/types";
-import { errorMessage } from "@/lib/ipc";
+import { errorMessage, ipc } from "@/lib/ipc";
 import { useMaestro } from "@/stores/maestroStore";
 import { useProject } from "@/stores/projectStore";
 import { useSettings } from "@/stores/settingsStore";
@@ -196,7 +196,9 @@ export function MaestroPanel() {
   async function showPreview(job: MaestroJob, filename: string) {
     try {
       const path = await preview(job, filename);
-      setPreviewUrl(convertFileSrc(path));
+      const asset = await ipc.ingestProjectAsset(job.projectId, path, "output");
+      useProject.getState().addOutput({ id: asset.id, jobId: job.jobId, fileName: filename, path: asset.path, sizeBytes: asset.sizeBytes, sha256: asset.sha256, available: true, seed: job.seed, createdAt: Date.now() });
+      setPreviewUrl(convertFileSrc(asset.path));
     } catch (error) {
       toast.error("No se pudo cargar el resultado", { description: errorMessage(error) });
     }

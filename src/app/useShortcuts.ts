@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { errorMessage } from "@/lib/ipc";
 import { useProject } from "@/stores/projectStore";
 import { useUi } from "@/stores/uiStore";
+import { useApp } from "@/stores/appStore";
 
 /** Shortcuts must never fire while the user is typing (§28). */
 function inTextField(target: EventTarget | null): boolean {
@@ -33,6 +34,10 @@ async function handle(event: KeyboardEvent): Promise<void> {
     ui.set("settingsOpen", true);
     return;
   }
+
+  // Home has no active project. Keep global navigation shortcuts above this
+  // guard, but do not save/generate the launcher's in-memory placeholder.
+  if (useApp.getState().view === "home") return;
 
   if (ctrl && event.key.toLowerCase() === "s") {
     event.preventDefault();

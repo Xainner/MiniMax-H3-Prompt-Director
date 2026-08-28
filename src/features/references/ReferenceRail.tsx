@@ -15,7 +15,7 @@ import {
 } from "@dnd-kit/sortable";
 import { open } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { ImagePlus, Sparkles, Loader2 } from "lucide-react";
+import { ImagePlus, Sparkles, Loader2, Link2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,7 @@ export function ReferenceRail() {
   const addReferences = useProject((s) => s.addReferences);
   const reorder = useProject((s) => s.reorderReferences);
   const analyzeAll = useProject((s) => s.analyzeAll);
+  const relinkReference = useProject((s) => s.relinkReference);
   const visionProfile = useSettings((s) => s.settings?.vision);
   const openSettings = useUi((s) => s.openSettings);
 
@@ -52,6 +53,7 @@ export function ReferenceRail() {
 
   const numbering = numberReferences(references);
   const pendingAnalysis = references.filter((r) => r.kind === "image" && !r.analysis).length;
+  const missing = references.filter((reference) => reference.available === false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -89,6 +91,15 @@ export function ReferenceRail() {
     const selected = await open({ multiple: true, filters: MEDIA_FILTERS });
     if (!selected) return;
     await handleAdd(Array.isArray(selected) ? selected : [selected]);
+  }
+
+  async function relinkFirstMissing() {
+    const reference = missing[0];
+    if (!reference) return;
+    const selected = await open({ multiple: false, filters: MEDIA_FILTERS });
+    if (!selected || Array.isArray(selected)) return;
+    try { await relinkReference(reference.id, selected); toast.success("Referencia relocalizada"); }
+    catch (error) { toast.error("El archivo no coincide", { description: errorMessage(error) }); }
   }
 
   async function runAnalyzeAll() {
@@ -161,6 +172,12 @@ export function ReferenceRail() {
           </DndContext>
         </ScrollArea>
       )}
+
+      {missing.length > 0 ? (
+        <footer className="shrink-0 border-t border-danger/30 bg-danger/5 p-2">
+          <Button variant="danger" size="md" className="w-full" onClick={() => void relinkFirstMissing()}><Link2 />Relocalizar {missing[0]!.fileName}</Button>
+        </footer>
+      ) : null}
 
       {pendingAnalysis > 0 ? (
         <footer className="shrink-0 border-t border-line p-2">

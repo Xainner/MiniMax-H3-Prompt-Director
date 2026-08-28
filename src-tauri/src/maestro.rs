@@ -104,6 +104,8 @@ pub struct MaestroJob {
     pub job_id: String,
     pub instance_id: String,
     pub project_id: String,
+    #[serde(default)]
+    pub seed: i64,
     pub status: String,
     #[serde(default)]
     pub progress: f64,
@@ -274,7 +276,10 @@ pub async fn capabilities(
         overlap_step: slide_u32("overlap_step", "overlap_step", 17),
         resolutions: resolution_list,
         defaults,
-        turbo: options.get("minimax_h3_turbo").cloned().filter(|value| !value.is_null()),
+        turbo: options
+            .get("minimax_h3_turbo")
+            .cloned()
+            .filter(|value| !value.is_null()),
     })
 }
 
@@ -318,6 +323,7 @@ pub async fn generate(
     project_id: &str,
     payload: Value,
 ) -> AppResult<MaestroJob> {
+    let seed = payload.get("seed").and_then(Value::as_i64).unwrap_or(-1);
     let response = client()
         .post(endpoint(instance, "/api/v1/generate")?)
         .json(&payload)
@@ -328,6 +334,7 @@ pub async fn generate(
         job_id: submitted.job_id,
         instance_id: instance.id.clone(),
         project_id: project_id.to_string(),
+        seed,
         status: submitted.status,
         progress: 0.0,
         step: 0,
@@ -349,10 +356,16 @@ pub async fn status(
 ) -> AppResult<MaestroJob> {
     let encoded = urlencoding::encode(job_id);
     let remote: StatusResponse = get_json(instance, &format!("/api/v1/status/{encoded}")).await?;
+    let seed = list_jobs(db)?
+        .into_iter()
+        .find(|job| job.job_id == job_id)
+        .map(|job| job.seed)
+        .unwrap_or(-1);
     let job = MaestroJob {
         job_id: remote.job_id,
         instance_id: instance.id.clone(),
         project_id: project_id.to_string(),
+        seed,
         status: remote.status,
         progress: remote.progress,
         step: remote.step,

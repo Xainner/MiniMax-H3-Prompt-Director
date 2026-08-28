@@ -6,6 +6,7 @@ import type {
   ShotDef,
   SubjectDef,
 } from "./types";
+import { defaultH3SkillProfile } from "./skills";
 
 /** Minimal, valid building blocks so tests state only what they are testing. */
 
@@ -78,14 +79,19 @@ export function makeDialogue(over: Partial<DialogueLine> = {}): DialogueLine {
 
 export function makeProject(over: Partial<Project> = {}): Project {
   return {
+    schemaVersion: 2,
     id: "project-1",
     name: "Test",
+    createdAt: 0,
+    videoSeed: 123456,
+    h3Skill: defaultH3SkillProfile(),
     brief: makeBrief(),
     references: [makeReference()],
     subjects: [makeSubject()],
     shots: makeShots(2),
     dialogue: [makeDialogue()],
     multiWindow: { enabled: false, windows: 2, carryMotionAndSound: true },
+    outputs: [],
     updatedAt: 0,
     ...over,
   };

@@ -29,10 +29,29 @@ function mediaInfo(over: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   invoke.mockReset();
+  invoke.mockImplementation((command: string, args?: Record<string, unknown>) => {
+    if (command === "ingest_project_asset") {
+      const path = String(args?.path ?? "C:/refs/asset.bin");
+      return Promise.resolve({ id: "asset_hash-laura", category: args?.category ?? "reference", originalFileName: path.split(/[\\/]/).pop(), path: `C:/managed/${path.split(/[\\/]/).pop()}`, sizeBytes: 2048, sha256: "hash-laura", available: true });
+    }
+    if (command === "copy_project_history" || command === "save_project") return Promise.resolve(undefined);
+    if (command === "project_asset_available") return Promise.resolve(true);
+    return Promise.resolve(undefined);
+  });
   useProject.setState({ project: createEmptyProject(), dirty: false });
 });
 
 describe("adding a reference", () => {
+  it("creates projects with a portable video seed", async () => {
+    await useProject.getState().create("Seeded", "t2va");
+    const { project, dirty } = useProject.getState();
+    expect(project.name).toBe("Seeded");
+    expect(project.videoSeed).toBeGreaterThanOrEqual(0);
+    expect(project.videoSeed).toBeLessThanOrEqual(2_147_483_647);
+    expect(project.schemaVersion).toBe(2);
+    expect(dirty).toBe(false);
+  });
+
   it("creates the Subject that will carry the <Picture 1> citation", async () => {
     invoke.mockResolvedValueOnce(mediaInfo());
 
@@ -125,6 +144,7 @@ describe("removing a reference", () => {
   it("replaces Picture 1 without leaving the previous person as Subject 1", async () => {
     invoke
       .mockResolvedValueOnce(mediaInfo())
+      .mockResolvedValueOnce({ id: "asset_hash-laura", category: "reference", originalFileName: "laura.png", path: "C:/managed/laura.png", sizeBytes: 2048, sha256: "hash-laura", available: true })
       .mockResolvedValueOnce(
         mediaInfo({
           hash: "hash-cowgirl",
@@ -354,6 +374,19 @@ describe("opening an older project", () => {
 
     // The switch must not read "off" while the renderer emits the guards.
     expect(useProject.getState().project.brief.continuityGuards).toBe(true);
+  });
+
+  it("migrates projects without a skill profile to the permanent H3 base", async () => {
+    const { h3Skill: _drop, ...legacy } = createEmptyProject();
+    invoke.mockResolvedValueOnce(JSON.stringify({ ...legacy, id: "old-skill" }));
+
+    await useProject.getState().open("old-skill");
+
+    expect(useProject.getState().project.h3Skill).toMatchObject({
+      baseId: "h3-prompt-writing",
+      styleId: null,
+      inputs: {},
+    });
   });
 });
 

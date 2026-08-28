@@ -120,6 +120,7 @@ export interface MaestroJob {
   jobId: string;
   instanceId: string;
   projectId: string;
+  seed: number;
   status: MaestroJobStatus;
   progress: number;
   step: number;

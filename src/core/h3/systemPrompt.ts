@@ -237,8 +237,8 @@ HARD RULES FOR THIS CONTRACT:
 - Respect the brief's visible-text policy exactly. Quoted text you emit must come from the allowed list.
 - Every string must be valid JSON: escape internal double quotes, no raw newlines inside string values.`;
 
-export function writerSystemPrompt(): string {
-  return `${GUIDE_INSTRUCTION}\n${OUTPUT_CONTRACT}`;
+export function writerSystemPrompt(skillInstructions = ""): string {
+  return `${GUIDE_INSTRUCTION}\n${OUTPUT_CONTRACT}${skillInstructions ? `\n\n${skillInstructions}` : ""}`;
 }
 
 const MULTI_WINDOW_CONTRACT = `
@@ -263,8 +263,8 @@ HARD RULES:
 - Window 1 opens the story. Every later window continues from the previous window's endState and must NOT replay a completed action.
 - The last window converges toward the final composition when one was supplied.`;
 
-export function multiWindowSystemPrompt(): string {
-  return `${GUIDE_INSTRUCTION}\n${MULTI_WINDOW_CONTRACT}`;
+export function multiWindowSystemPrompt(skillInstructions = ""): string {
+  return `${GUIDE_INSTRUCTION}\n${MULTI_WINDOW_CONTRACT}${skillInstructions ? `\n\n${skillInstructions}` : ""}`;
 }
 
 /** §20.1 — the strong block, injected verbatim when the user asks for it. */

@@ -10,6 +10,7 @@ import type {
   MaestroTestResult,
   MaestroUpload,
 } from "@/core/maestro/types";
+import type { ProjectAsset, ProjectExportOptions, ProjectExportReport, ProjectImportPreview, ProjectImportStrategy } from "@/core/projects/types";
 
 /** Mirrors `settings::Profile`. The API key is never part of this shape. */
 export interface Profile {
@@ -51,7 +52,11 @@ export type VisionResult = VisionAnalysis & { cached: boolean };
 export interface ProjectSummary {
   id: string;
   name: string;
+  createdAt: number;
   updatedAt: number;
+  schemaVersion: number;
+  referenceCount: number;
+  totalSize: number;
 }
 
 export interface HistoryEntry {
@@ -105,10 +110,22 @@ export const ipc = {
   saveProject: (id: string, name: string, data: string) =>
     invoke<void>("save_project", { id, name, data }),
   deleteProject: (id: string) => invoke<void>("delete_project", { id }),
+  ingestProjectAsset: (projectId: string, path: string, category: "reference" | "output") =>
+    invoke<ProjectAsset>("ingest_project_asset", { projectId, path, category }),
+  projectAssetAvailable: (path: string, sizeBytes: number) =>
+    invoke<boolean>("project_asset_available", { path, sizeBytes }),
+  previewProjectPackage: (path: string) =>
+    invoke<ProjectImportPreview>("preview_project_package", { path }),
+  exportProjectPackage: (options: ProjectExportOptions) =>
+    invoke<ProjectExportReport>("export_project_package", { options }),
+  importProjectPackage: (path: string, strategy: ProjectImportStrategy) =>
+    invoke<string>("import_project_package", { path, strategy }),
 
   addHistory: (id: string, projectId: string, mode: string, content: string) =>
     invoke<void>("add_history", { id, projectId, mode, content }),
   listHistory: (projectId: string) => invoke<HistoryEntry[]>("list_history", { projectId }),
+  copyProjectHistory: (fromProjectId: string, toProjectId: string) =>
+    invoke<void>("copy_project_history", { fromProjectId, toProjectId }),
 
   listMaestroInstances: () => invoke<MaestroInstance[]>("list_maestro_instances"),
   saveMaestroInstance: (instance: MaestroInstance) =>

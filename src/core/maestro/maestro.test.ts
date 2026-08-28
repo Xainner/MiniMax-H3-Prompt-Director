@@ -74,6 +74,7 @@ describe("Maestro references and payload", () => {
     expect(payload.minimax_h3_sequence_prompt_mode).toBe("manual");
     expect(payload.h3_window_prompts).toEqual(windows);
     expect(payload.prompt).toBe(windows.join("\n"));
+    expect(payload.seed).toBe(project.videoSeed);
   });
 
   it("sends the selected Maestro Turbo preset, steps, filename and weight", () => {
