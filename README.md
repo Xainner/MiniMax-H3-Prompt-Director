@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="src/assets/brand/logo.png" alt="Director" width="160" />
+<img src="src/assets/brand/logo.png" alt="Director" width="280" />
 
 # Director
 
