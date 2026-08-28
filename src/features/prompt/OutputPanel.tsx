@@ -25,6 +25,7 @@ import { useProject } from "@/stores/projectStore";
 import { isProfileUsable, useSettings } from "@/stores/settingsStore";
 import { useUi } from "@/stores/uiStore";
 import { PromptView } from "./PromptView";
+import { MaestroPanel } from "@/features/maestro/MaestroPanel";
 
 export function OutputPanel() {
   const generation = useProject((s) => s.generation);
@@ -36,24 +37,30 @@ export function OutputPanel() {
   const errors = generation.findings.filter((f) => f.severity === "error");
   const warnings = generation.findings.filter((f) => f.severity === "warning");
 
+  useEffect(() => {
+    if (!multiWindow.enabled && outputTab === "windows") setUi("outputTab", "prompt");
+  }, [multiWindow.enabled, outputTab, setUi]);
+
   return (
     <section className="flex h-full flex-col bg-panel">
       <OutputToolbar busy={busy} />
 
-      {multiWindow.enabled ? (
-        <Tabs
+      <Tabs
           value={outputTab}
-          onValueChange={(value) => setUi("outputTab", value as "prompt" | "windows")}
+          onValueChange={(value) => setUi("outputTab", value as "prompt" | "windows" | "maestro")}
           className="flex min-h-0 flex-1 flex-col"
         >
           <TabsList>
             <TabsTrigger value="prompt">Prompt</TabsTrigger>
-            <TabsTrigger value="windows">
-              Ventanas
-              {generation.windows.length > 0 ? (
-                <span className="ml-1 text-ink-faint">{generation.windows.length}</span>
-              ) : null}
-            </TabsTrigger>
+            {multiWindow.enabled ? (
+              <TabsTrigger value="windows">
+                Ventanas
+                {generation.windows.length > 0 ? (
+                  <span className="ml-1 text-ink-faint">{generation.windows.length}</span>
+                ) : null}
+              </TabsTrigger>
+            ) : null}
+            <TabsTrigger value="maestro">Preparar y enviar</TabsTrigger>
           </TabsList>
           <TabsContent value="prompt" className="min-h-0 flex-1">
             <PromptSurface busy={busy} errors={errors} warnings={warnings} />
@@ -61,10 +68,10 @@ export function OutputPanel() {
           <TabsContent value="windows" className="min-h-0 flex-1">
             <WindowsSurface />
           </TabsContent>
+          <TabsContent value="maestro" className="min-h-0 flex-1">
+            <MaestroPanel />
+          </TabsContent>
         </Tabs>
-      ) : (
-        <PromptSurface busy={busy} errors={errors} warnings={warnings} />
-      )}
     </section>
   );
 }
@@ -552,4 +559,3 @@ function ValidationBar({
     </div>
   );
 }
-

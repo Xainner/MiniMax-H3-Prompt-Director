@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type SettingsTab = "vision" | "writer" | "cache";
+export type SettingsTab = "vision" | "writer" | "maestro" | "cache";
 
 interface UiState {
   settingsOpen: boolean;
@@ -11,7 +11,7 @@ interface UiState {
   selectedReferenceId: string | null;
   lightboxReferenceId: string | null;
   briefTab: "brief" | "subjects" | "timeline";
-  outputTab: "prompt" | "windows";
+  outputTab: "prompt" | "windows" | "maestro";
 
   set: <K extends keyof UiState>(key: K, value: UiState[K]) => void;
   /** Opens Ajustes on the tab that actually needs attention. */

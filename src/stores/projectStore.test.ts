@@ -42,6 +42,7 @@ describe("adding a reference", () => {
     expect(project.references).toHaveLength(1);
     expect(project.subjects).toHaveLength(1);
     expect(project.subjects[0]!.sourceRefIds).toEqual(["hash-laura"]);
+    expect(project.subjects[0]!.managedSourceRefId).toBe("hash-laura");
     expect(project.subjects[0]!.label).toBe("laura");
     expect(project.subjects[0]!.description).toBe("the person");
   });
@@ -95,7 +96,7 @@ describe("changing a reference role", () => {
 });
 
 describe("removing a reference", () => {
-  it("detaches it from every Subject", async () => {
+  it("removes the automatically managed Subject with its only source", async () => {
     invoke.mockResolvedValueOnce(mediaInfo());
 
     await useProject.getState().addReferences(["C:/refs/laura.png"]);
@@ -103,7 +104,45 @@ describe("removing a reference", () => {
 
     const { project } = useProject.getState();
     expect(project.references).toHaveLength(0);
-    expect(project.subjects[0]?.sourceRefIds ?? []).toEqual([]);
+    expect(project.subjects).toHaveLength(0);
+  });
+
+  it("keeps a user-managed Subject and only detaches the removed source", async () => {
+    invoke.mockResolvedValueOnce(mediaInfo());
+    await useProject.getState().addReferences(["C:/refs/laura.png"]);
+    const manualId = useProject.getState().addSubject({
+      label: "Personaje manual",
+      description: "the supporting character",
+      sourceRefIds: ["hash-laura"],
+    });
+
+    useProject.getState().removeReference("hash-laura");
+
+    const manual = useProject.getState().project.subjects.find((subject) => subject.id === manualId);
+    expect(manual?.sourceRefIds).toEqual([]);
+  });
+
+  it("replaces Picture 1 without leaving the previous person as Subject 1", async () => {
+    invoke
+      .mockResolvedValueOnce(mediaInfo())
+      .mockResolvedValueOnce(
+        mediaInfo({
+          hash: "hash-cowgirl",
+          path: "C:/refs/cowgirl.png",
+          fileName: "cowgirl.png",
+        }),
+      );
+
+    await useProject.getState().addReferences(["C:/refs/laura.png"]);
+    useProject.getState().removeReference("hash-laura");
+    await useProject.getState().addReferences(["C:/refs/cowgirl.png"]);
+
+    const { project } = useProject.getState();
+    const subjects = effectiveSubjects(project);
+    expect(project.references).toHaveLength(1);
+    expect(project.subjects).toHaveLength(1);
+    expect(subjects[0]!.sourceRefIds).toEqual(["hash-cowgirl"]);
+    expect(numberReferences(project.references).tag["hash-cowgirl"]).toBe("<Picture 1>");
   });
 });
 
@@ -236,6 +275,44 @@ describe("opening an older project", () => {
     expect(project.subjects).toHaveLength(1);
     expect(project.subjects[0]!.sourceRefIds).toEqual(["hash-wachi"]);
     expect(project.subjects[0]!.attributes).toBe("her exact facial geometry and outfit");
+    expect(project.subjects[0]!.managedSourceRefId).toBe("hash-wachi");
+  });
+
+  it("adopts the automatic Subject shape saved by older builds", async () => {
+    const legacy = {
+      ...createEmptyProject(),
+      id: "legacy-subject",
+      references: [
+        {
+          id: "hash-wachi",
+          path: "C:/refs/Wachi.jpg",
+          fileName: "Wachi.jpg",
+          kind: "image",
+          sizeBytes: 87000,
+          role: "identity",
+          retention: "fully_preserved",
+          note: "",
+        },
+      ],
+      subjects: [
+        {
+          id: "old-auto-subject",
+          label: "Wachi",
+          description: "the person",
+          sourceRefIds: ["hash-wachi"],
+          attributes: "her exact facial geometry",
+          retention: "fully_preserved",
+          appearsIn: [],
+        },
+      ],
+    };
+
+    invoke.mockResolvedValueOnce(JSON.stringify(legacy));
+    await useProject.getState().open("legacy-subject");
+
+    expect(useProject.getState().project.subjects[0]!.managedSourceRefId).toBe("hash-wachi");
+    useProject.getState().removeReference("hash-wachi");
+    expect(useProject.getState().project.subjects).toHaveLength(0);
   });
 
   it("re-validates the stored prompt instead of trusting it", async () => {

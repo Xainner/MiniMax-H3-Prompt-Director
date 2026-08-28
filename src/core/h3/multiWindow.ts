@@ -7,10 +7,10 @@ import type { Finding, H3Mode, Project, WriterWindowOutput } from "./types";
  * window self-contained, no window replaying a completed action.
  */
 
-export function buildWindowBrief(project: Project, mode: H3Mode): string {
+export function buildWindowBrief(project: Project, mode: H3Mode, requestedCount?: number): string {
   const numbering = numberReferences(project.references);
   const speakers = assignSpeakers(project);
-  const count = Math.max(2, project.multiWindow.windows);
+  const count = Math.max(1, requestedCount ?? project.multiWindow.windows);
   const perWindow = project.brief.durationSec / count;
 
   const lines: string[] = [];

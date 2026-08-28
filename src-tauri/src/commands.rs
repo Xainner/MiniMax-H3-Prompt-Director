@@ -4,6 +4,7 @@ use crate::llm::client::{self, CancelRegistry};
 use crate::llm::types::{ChatMessage, TestResult};
 use crate::llm::vision::{self, VisionResult};
 use crate::media::{self, MediaInfo};
+use crate::maestro::{self, MaestroCapabilities, MaestroInstance, MaestroJob, MaestroLora, MaestroModel, MaestroTestResult, MaestroUpload};
 use crate::secrets;
 use crate::settings::{self, Profile, SettingsView};
 use tauri::{AppHandle, State};
@@ -223,6 +224,81 @@ pub fn add_history(
 #[tauri::command]
 pub fn list_history(db: State<'_, Db>, project_id: String) -> AppResult<Vec<HistoryEntry>> {
     db.list_history(&project_id)
+}
+
+// ---- Maestro ---------------------------------------------------------------
+
+#[tauri::command]
+pub fn list_maestro_instances(db: State<'_, Db>) -> AppResult<Vec<MaestroInstance>> {
+    maestro::list_instances(&db)
+}
+
+#[tauri::command]
+pub fn save_maestro_instance(db: State<'_, Db>, instance: MaestroInstance) -> AppResult<Vec<MaestroInstance>> {
+    maestro::save_instance(&db, instance)
+}
+
+#[tauri::command]
+pub fn delete_maestro_instance(db: State<'_, Db>, id: String) -> AppResult<Vec<MaestroInstance>> {
+    maestro::delete_instance(&db, &id)
+}
+
+#[tauri::command]
+pub async fn test_maestro_instance(instance: MaestroInstance) -> AppResult<MaestroTestResult> {
+    maestro::test(instance).await
+}
+
+#[tauri::command]
+pub async fn maestro_models(db: State<'_, Db>, instance_id: String) -> AppResult<Vec<MaestroModel>> {
+    let instance = maestro::load_instance(&db, &instance_id)?;
+    maestro::models(&instance).await
+}
+
+#[tauri::command]
+pub async fn maestro_model_capabilities(db: State<'_, Db>, instance_id: String, model_type: String) -> AppResult<MaestroCapabilities> {
+    let instance = maestro::load_instance(&db, &instance_id)?;
+    maestro::capabilities(&instance, &model_type).await
+}
+
+#[tauri::command]
+pub async fn maestro_loras(db: State<'_, Db>, instance_id: String, model_type: String) -> AppResult<Vec<MaestroLora>> {
+    let instance = maestro::load_instance(&db, &instance_id)?;
+    maestro::loras(&instance, &model_type).await
+}
+
+#[tauri::command]
+pub async fn maestro_upload(db: State<'_, Db>, instance_id: String, path: String) -> AppResult<MaestroUpload> {
+    let instance = maestro::load_instance(&db, &instance_id)?;
+    maestro::upload(&instance, &path).await
+}
+
+#[tauri::command]
+pub async fn maestro_generate(db: State<'_, Db>, instance_id: String, project_id: String, payload: serde_json::Value) -> AppResult<MaestroJob> {
+    let instance = maestro::load_instance(&db, &instance_id)?;
+    maestro::generate(&db, &instance, &project_id, payload).await
+}
+
+#[tauri::command]
+pub async fn maestro_job_status(db: State<'_, Db>, instance_id: String, project_id: String, job_id: String) -> AppResult<MaestroJob> {
+    let instance = maestro::load_instance(&db, &instance_id)?;
+    maestro::status(&db, &instance, &project_id, &job_id).await
+}
+
+#[tauri::command]
+pub async fn maestro_cancel_job(db: State<'_, Db>, instance_id: String, job_id: String) -> AppResult<()> {
+    let instance = maestro::load_instance(&db, &instance_id)?;
+    maestro::cancel(&instance, &job_id).await
+}
+
+#[tauri::command]
+pub fn list_maestro_jobs(db: State<'_, Db>) -> AppResult<Vec<MaestroJob>> {
+    maestro::list_jobs(&db)
+}
+
+#[tauri::command]
+pub async fn maestro_download_output(app: AppHandle, db: State<'_, Db>, instance_id: String, filename: String, destination: Option<String>) -> AppResult<String> {
+    let instance = maestro::load_instance(&db, &instance_id)?;
+    maestro::download(&app, &instance, &filename, destination).await
 }
 
 fn state_db(app: &AppHandle) -> State<'_, Db> {

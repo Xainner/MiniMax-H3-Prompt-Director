@@ -90,6 +90,25 @@ function backfillSubjects(project: Project): Project {
     multiWindow: { ...defaults.multiWindow, ...project.multiWindow },
   };
 
+  // Subjects created automatically by older builds predate the lifecycle
+  // marker. Adopt only the high-confidence shape produced by addReferences:
+  // one source, its filename as label, the default description and no shot
+  // scoping. Manually modelled Subjects remain untouched.
+  project = {
+    ...project,
+    subjects: project.subjects.map((subject) => {
+      if (subject.managedSourceRefId || subject.sourceRefIds.length !== 1) return subject;
+      const ref = project.references.find((candidate) => candidate.id === subject.sourceRefIds[0]);
+      if (!ref) return subject;
+      const defaultLabel = ref.fileName.replace(/\.[^.]+$/, "");
+      const looksAutomatic =
+        subject.label === defaultLabel &&
+        subject.description === describeReference(ref) &&
+        (subject.appearsIn?.length ?? 0) === 0;
+      return looksAutomatic ? { ...subject, managedSourceRefId: ref.id } : subject;
+    }),
+  };
+
   const claimed = new Set(project.subjects.flatMap((s) => s.sourceRefIds));
   const missing = project.references.filter(
     (ref) => !roleMeta(ref.role).standalone && !claimed.has(ref.id),
@@ -102,6 +121,7 @@ function backfillSubjects(project: Project): Project {
       ...project.subjects,
       ...missing.map<SubjectDef>((ref) => ({
         id: createId("subj"),
+        managedSourceRefId: ref.id,
         label: ref.fileName.replace(/\.[^.]+$/, ""),
         description: describeReference(ref),
         sourceRefIds: [ref.id],
@@ -128,6 +148,7 @@ interface ProjectState {
   // brief
   patchBrief: (patch: Partial<Brief>) => void;
   patchMultiWindow: (patch: Partial<Project["multiWindow"]>) => void;
+  patchMaestro: (patch: Partial<NonNullable<Project["maestro"]>>) => void;
 
   // references
   addReferences: (paths: string[]) => Promise<void>;
@@ -157,7 +178,8 @@ interface ProjectState {
   mode: () => H3Mode;
   generate: () => Promise<void>;
   repair: () => Promise<void>;
-  generateWindows: () => Promise<void>;
+  generateWindows: (count?: number) => Promise<void>;
+  setGeneratedWindows: (windows: string[]) => void;
   cancel: () => Promise<void>;
   clearGeneration: () => void;
 }
@@ -219,6 +241,23 @@ export const useProject = create<ProjectState>((set, get) => {
     patchMultiWindow: (patch) =>
       mutate((p) => ({ ...p, multiWindow: { ...p.multiWindow, ...patch } })),
 
+    patchMaestro: (patch) =>
+      mutate((p) => ({
+        ...p,
+        maestro: {
+          instanceId: "",
+          modelType: "",
+          resolution: "",
+          continuity: true,
+          turboEnabled: false,
+          referenceIntents: {},
+          loras: [],
+          reviewedWindows: [],
+          ...p.maestro,
+          ...patch,
+        },
+      })),
+
     addReferences: async (paths) => {
       for (const path of paths) {
         try {
@@ -246,6 +285,7 @@ export const useProject = create<ProjectState>((set, get) => {
           // in the rail without ever being cited.
           if (!roleMeta(role).standalone) {
             get().addSubject({
+              managedSourceRefId: item.id,
               label: item.fileName.replace(/\.[^.]+$/, ""),
               description: describeReference(item),
               sourceRefIds: [item.id],
@@ -280,10 +320,11 @@ export const useProject = create<ProjectState>((set, get) => {
       if (patch.role && !roleMeta(patch.role).standalone) {
         const state = get();
         const claimed = state.project.subjects.some((s) => s.sourceRefIds.includes(id));
-        if (!claimed) {
+          if (!claimed) {
           const ref = state.project.references.find((r) => r.id === id);
-          state.addSubject({
-            label: ref?.fileName.replace(/\.[^.]+$/, "") ?? "",
+            state.addSubject({
+              managedSourceRefId: id,
+              label: ref?.fileName.replace(/\.[^.]+$/, "") ?? "",
             description: ref ? describeReference(ref) : "",
             sourceRefIds: [id],
             attributes: ref?.analysis?.h3AttributeLine ?? "",
@@ -294,14 +335,43 @@ export const useProject = create<ProjectState>((set, get) => {
     },
 
     removeReference: (id) =>
-      mutate((p) => ({
-        ...p,
-        references: p.references.filter((r) => r.id !== id),
-        subjects: p.subjects.map((s) => ({
-          ...s,
-          sourceRefIds: s.sourceRefIds.filter((refId) => refId !== id),
-        })),
-      })),
+      mutate((p) => {
+        const removedSubjectIds = new Set(
+          p.subjects
+            .filter(
+              (subject) =>
+                subject.managedSourceRefId === id &&
+                subject.sourceRefIds.length === 1 &&
+                subject.sourceRefIds[0] === id,
+            )
+            .map((subject) => subject.id),
+        );
+
+        return {
+          ...p,
+          maestro: p.maestro
+            ? {
+                ...p.maestro,
+                referenceIntents: Object.fromEntries(
+                  Object.entries(p.maestro.referenceIntents).filter(([refId]) => refId !== id),
+                ),
+              }
+            : undefined,
+          references: p.references.filter((reference) => reference.id !== id),
+          subjects: p.subjects
+            .filter((subject) => !removedSubjectIds.has(subject.id))
+            .map((subject) => {
+              const sourceRefIds = subject.sourceRefIds.filter((refId) => refId !== id);
+              return subject.managedSourceRefId === id
+                ? { ...subject, sourceRefIds, managedSourceRefId: undefined }
+                : { ...subject, sourceRefIds };
+            }),
+          dialogue: p.dialogue.map((line) => ({
+            ...line,
+            subjectIds: line.subjectIds.filter((subjectId) => !removedSubjectIds.has(subjectId)),
+          })),
+        };
+      }),
 
     reorderReferences: (ids) =>
       mutate((p) => {
@@ -371,7 +441,18 @@ export const useProject = create<ProjectState>((set, get) => {
     patchSubject: (id, patch) =>
       mutate((p) => ({
         ...p,
-        subjects: p.subjects.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+        subjects: p.subjects.map((s) => {
+          if (s.id !== id) return s;
+          const next = { ...s, ...patch };
+          if (
+            patch.sourceRefIds &&
+            s.managedSourceRefId &&
+            (patch.sourceRefIds.length !== 1 || patch.sourceRefIds[0] !== s.managedSourceRefId)
+          ) {
+            next.managedSourceRefId = undefined;
+          }
+          return next;
+        }),
       })),
 
     removeSubject: (id) =>
@@ -550,10 +631,11 @@ export const useProject = create<ProjectState>((set, get) => {
       }
     },
 
-    generateWindows: async () => {
+    generateWindows: async (requestedCount) => {
       const { project } = get();
       const mode = get().mode();
       const requestId = createId("req");
+      const windowCount = Math.max(1, requestedCount ?? project.multiWindow.windows);
 
       set((state) => ({
         generation: { ...state.generation, status: "writing", requestId, raw: "", error: null },
@@ -563,12 +645,12 @@ export const useProject = create<ProjectState>((set, get) => {
         const raw = await ipc.generatePrompt({
           requestId,
           system: multiWindowSystemPrompt(),
-          user: buildWindowBrief(project, mode),
+          user: buildWindowBrief(project, mode, windowCount),
         });
 
         set((state) => ({ generation: { ...state.generation, raw, status: "rendering" } }));
 
-        const parsed = parseWindowOutput(raw, project.multiWindow.windows);
+        const parsed = parseWindowOutput(raw, windowCount);
         const windows = renderWindows(project, parsed);
         const windowFindings = validateWindows(windows, project);
 
@@ -583,6 +665,24 @@ export const useProject = create<ProjectState>((set, get) => {
         }));
         throw e;
       }
+    },
+
+    setGeneratedWindows: (windows) => {
+      const normalized = windows.map((window) => window.replace(/\s*\n+\s*/g, " ").trim());
+      const { project } = get();
+      const windowFindings = validateWindows(normalized, project);
+      set((state) => ({
+        project: {
+          ...state.project,
+          lastWindows: normalized,
+          maestro: state.project.maestro
+            ? { ...state.project.maestro, reviewedWindows: normalized }
+            : state.project.maestro,
+          updatedAt: Date.now(),
+        },
+        dirty: true,
+        generation: { ...state.generation, windows: normalized, windowFindings, status: "done" },
+      }));
     },
 
     cancel: async () => {

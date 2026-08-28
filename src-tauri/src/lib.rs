@@ -3,6 +3,7 @@ mod db;
 mod error;
 mod llm;
 mod media;
+mod maestro;
 mod secrets;
 mod settings;
 
@@ -41,6 +42,19 @@ pub fn run() {
             commands::delete_project,
             commands::add_history,
             commands::list_history,
+            commands::list_maestro_instances,
+            commands::save_maestro_instance,
+            commands::delete_maestro_instance,
+            commands::test_maestro_instance,
+            commands::maestro_models,
+            commands::maestro_model_capabilities,
+            commands::maestro_loras,
+            commands::maestro_upload,
+            commands::maestro_generate,
+            commands::maestro_job_status,
+            commands::maestro_cancel_job,
+            commands::list_maestro_jobs,
+            commands::maestro_download_output,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

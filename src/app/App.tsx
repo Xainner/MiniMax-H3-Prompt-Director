@@ -14,6 +14,7 @@ import { TimelinePanel } from "@/features/timeline/TimelinePanel";
 import { ipc } from "@/lib/ipc";
 import { useProject } from "@/stores/projectStore";
 import { useSettings } from "@/stores/settingsStore";
+import { useMaestro } from "@/stores/maestroStore";
 import { useUi } from "@/stores/uiStore";
 import { CommandPalette } from "./CommandPalette";
 import { StatusBar } from "./StatusBar";
@@ -22,6 +23,7 @@ import { useShortcuts } from "./useShortcuts";
 
 export function App() {
   const loadSettings = useSettings((s) => s.load);
+  const resumeMaestroJobs = useMaestro((s) => s.resumeJobs);
   const lightboxId = useUi((s) => s.lightboxReferenceId);
   const briefTab = useUi((s) => s.briefTab);
   const setUi = useUi((s) => s.set);
@@ -38,6 +40,10 @@ export function App() {
   useEffect(() => {
     void loadSettings();
   }, [loadSettings]);
+
+  useEffect(() => {
+    void resumeMaestroJobs();
+  }, [resumeMaestroJobs]);
 
   // Reopen whatever the user was last working on, like any desktop editor.
   useEffect(() => {

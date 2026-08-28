@@ -1,5 +1,11 @@
 import { ANTI_MICROTEXT_BLOCK, NO_TEXT_BLOCK } from "./systemPrompt";
 import { numberReferences, roleMeta, taskPrefixes } from "./roles";
+import {
+  isPersonSubject,
+  requestsWardrobeChange,
+  subjectAttributesForPrompt,
+  subjectRetentionForPrompt,
+} from "./intent";
 import type {
   DialogueLine,
   H3Mode,
@@ -96,10 +102,11 @@ function renderSubjectLine(
   index: number,
   refs: Map<string, ReferenceItem>,
   numbering: RefNumbering,
+  attributes = subject.attributes,
 ): string {
   const tag = subjectTag(index);
   const description = subject.description.trim() || "the referenced visual content";
-  const attrs = subject.attributes.trim().replace(/\.$/, "");
+  const attrs = attributes.trim().replace(/\.$/, "");
 
   const sources = subject.sourceRefIds
     .map((id) => ({ ref: refs.get(id), tag: numbering.tag[id] }))
@@ -341,12 +348,9 @@ function compositionBlock(aspect: Project["brief"]["aspectRatio"]): string {
   }
 }
 
-const PEOPLE_WORDS = ["one", "two", "three", "four", "five", "six"];
-
 function continuityBlock(project: Project, subjects: SubjectDef[]): string | null {
   const refMap = new Map(project.references.map((r) => [r.id, r]));
-  const numbering = numberReferences(project.references);
-  const people = subjects.filter((s) => isPerson(s, refMap));
+  const people = subjects.filter((s) => isPersonSubject(s, project.references));
   if (people.length === 0) return null;
 
   const tagOf = (subject: SubjectDef) => subjectTag(subjects.indexOf(subject));
@@ -361,41 +365,32 @@ function continuityBlock(project: Project, subjects: SubjectDef[]): string | nul
       `Preserve ${tag}'s exact facial identity throughout the entire video: same facial geometry, eye shape, nose shape, lips, jawline, skin tone, hairstyle, hairline, apparent age, and facial proportions. No face morphing or identity drift.`,
     );
 
-    // §33 — wardrobe, with the actual garments when a reference described them.
-    const wardrobe = subject.sourceRefIds
-      .map((id) => refMap.get(id)?.analysis?.wardrobe?.trim())
-      .find(Boolean);
-    lines.push(
-      wardrobe
-        ? `${tag} remains in the exact same outfit throughout every shot: ${wardrobe.replace(/\.$/, "")}. No wardrobe change occurs. Do not add jackets, hats, jewelry, accessories, uniforms, or alternate clothing not defined in ${tag}.`
-        : `${tag} remains in the exact same outfit throughout every shot. No wardrobe change occurs. Do not add jackets, hats, jewelry, accessories, uniforms, or alternate clothing not defined in ${tag}.`,
-    );
+    // §33 — identity continuity and wardrobe continuity are independent. The
+    // source clothes become observational context when the user changes them.
+    if (!requestsWardrobeChange(project.brief)) {
+      const wardrobe = subject.sourceRefIds
+        .map((id) => refMap.get(id)?.analysis?.wardrobe?.trim())
+        .find(Boolean);
+      lines.push(
+        wardrobe
+          ? `${tag} remains in the exact same outfit throughout every shot: ${wardrobe.replace(/\.$/, "")}. No wardrobe change occurs. Do not add jackets, hats, jewelry, accessories, uniforms, or alternate clothing not defined in ${tag}.`
+          : `${tag} remains in the exact same outfit throughout every shot. No wardrobe change occurs. Do not add jackets, hats, jewelry, accessories, uniforms, or alternate clothing not defined in ${tag}.`,
+      );
+    }
   }
 
   // §32 — duplicated or cloned people are a known failure mode.
   const tags = people.map(tagOf);
-  const count = PEOPLE_WORDS[people.length - 1] ?? String(people.length);
-  const noun = people.length === 1 ? "person is" : "people are";
   const instances =
     people.length === 1
       ? `There is exactly one instance of ${tags[0]}.`
       : `There is exactly one instance of each of ${tags.join(" and ")}.`;
 
   lines.push(
-    `Exactly ${count} ${noun} visible in the entire video: ${tags.join(" and ")}. No additional people appear in foreground, background, reflections, screens, posters, photographs, or duplicated instances. ${instances} Never clone, duplicate, mirror, or create alternate versions of any subject.`,
+    `Do not create duplicate, cloned, mirrored, or alternate instances of the defined subjects. ${instances} Additional people may appear only when explicitly requested by the user; never infer them from the reference image.`,
   );
 
-  // Keep the block honest about references that exist but are not people.
-  void numbering;
-
   return `IDENTITY AND CONTINUITY:\n${lines.join("\n")}`;
-}
-
-function isPerson(subject: SubjectDef, refMap: Map<string, ReferenceItem>): boolean {
-  const refs = subject.sourceRefIds.map((id) => refMap.get(id)).filter(Boolean) as ReferenceItem[];
-  if (refs.some((r) => r.analysis?.subjectType === "person")) return true;
-  if (refs.some((r) => r.role === "identity" || r.role === "wardrobe")) return true;
-  return /\b(woman|man|person|girl|boy|character|narrator|presenter)\b/i.test(subject.description);
 }
 
 function assetRules(
@@ -606,6 +601,7 @@ export function effectiveSubjects(project: Project): SubjectDef[] {
     .filter((ref) => !roleMeta(ref.role).standalone && !claimed.has(ref.id))
     .map<SubjectDef>((ref) => ({
       id: `auto-${ref.id}`,
+      managedSourceRefId: ref.id,
       label: ref.fileName,
       description: describeReference(ref),
       sourceRefIds: [ref.id],
@@ -674,7 +670,9 @@ function renderFullReference(project: Project, writer: WriterOutput): string {
   })();
 
   // 1. subject_definitions
-  const definitions: string[] = subjects.map((s, i) => renderSubjectLine(s, i, refMap, numbering));
+  const definitions: string[] = subjects.map((s, i) =>
+    renderSubjectLine(s, i, refMap, numbering, subjectAttributesForPrompt(project, s)),
+  );
   for (const ref of project.references) {
     if (!roleMeta(ref.role).standalone) continue;
     const tag = numbering.tag[ref.id];
@@ -689,7 +687,12 @@ function renderFullReference(project: Project, writer: WriterOutput): string {
   // 3. retention_analysis
   const retention: string[] = subjects.map((s, i) => {
     const tag = subjectTag(i);
-    return `${tag}${appearsClause(s, project.shots)}: ${s.retention} - ${retentionNote(tag, writer, s.retention)}`;
+    const marker = subjectRetentionForPrompt(project, s);
+    const note =
+      requestsWardrobeChange(project.brief) && isPersonSubject(s, project.references)
+        ? "preserve exact facial identity, hairstyle, skin tone, apparent age, and body proportions while applying the user-requested wardrobe or appearance change from the first frame."
+        : retentionNote(tag, writer, marker);
+    return `${tag}${appearsClause(s, project.shots)}: ${marker} - ${note}`;
   });
   for (const ref of project.references) {
     if (!roleMeta(ref.role).standalone) continue;

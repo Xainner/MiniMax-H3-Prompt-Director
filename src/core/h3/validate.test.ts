@@ -351,6 +351,38 @@ describe("retention markers", () => {
   });
 });
 
+describe("request consistency", () => {
+  it("rejects source-wardrobe preservation when the request removes it", () => {
+    const project = makeProject({
+      brief: makeBrief({ idea: "Conserva su identidad, pero sin bikini." }),
+      dialogue: [],
+    });
+    const broken = `${goodPrompt(project)}\nNo wardrobe change occurs.`;
+    expect(rules(project, broken)).toContain("intent.wardrobeConflict");
+  });
+
+  it("rejects a one-person limit when the request includes a partner", () => {
+    const project = makeProject({
+      brief: makeBrief({ idea: "La mujer aparece con su pareja." }),
+      dialogue: [],
+    });
+    const broken = `${goodPrompt(project)}\nExactly one person is visible.`;
+    expect(rules(project, broken)).toContain("intent.peopleConflict");
+  });
+
+  it("rejects muting vocalizations that the user requested", () => {
+    const project = makeProject({
+      brief: makeBrief({ idea: "Include soft moaning and a male groan." }),
+      dialogue: [],
+    });
+    const broken = goodPrompt(project).replace(
+      "Soft room ambience.",
+      "Soft room ambience. No distinct dialogue or vocalizations occur.",
+    );
+    expect(rules(project, broken)).toContain("intent.audioConflict");
+  });
+});
+
 describe("camera prose (§13.4)", () => {
   it("warns about a disconnected camera keyword list", () => {
     const project = makeProject();

@@ -145,6 +145,27 @@ impl Db {
         })?;
         rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
     }
+
+    // ---- Maestro jobs ------------------------------------------------------
+
+    pub fn upsert_maestro_job(&self, id: &str, project_id: &str, instance_id: &str, data: &str) -> AppResult<()> {
+        self.conn().execute(
+            "INSERT INTO maestro_jobs (id, project_id, instance_id, data, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, strftime('%s','now'), strftime('%s','now'))
+             ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at",
+            params![id, project_id, instance_id, data],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_maestro_jobs(&self) -> AppResult<Vec<String>> {
+        let conn = self.conn();
+        let mut stmt = conn.prepare(
+            "SELECT data FROM maestro_jobs ORDER BY updated_at DESC LIMIT 100",
+        )?;
+        let rows = stmt.query_map([], |row| row.get(0))?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
 }
 
 #[derive(serde::Serialize)]
@@ -199,6 +220,18 @@ fn migrate(conn: &Connection) -> AppResult<()> {
 
         CREATE INDEX IF NOT EXISTS idx_history_project
             ON prompt_history (project_id, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS maestro_jobs (
+            id          TEXT PRIMARY KEY,
+            project_id  TEXT NOT NULL,
+            instance_id TEXT NOT NULL,
+            data        TEXT NOT NULL,
+            created_at  INTEGER NOT NULL,
+            updated_at  INTEGER NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_maestro_jobs_updated
+            ON maestro_jobs (updated_at DESC);
         ",
     )?;
     Ok(())

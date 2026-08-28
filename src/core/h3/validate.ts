@@ -1,5 +1,10 @@
 import { effectiveSubjects, subjectTag } from "./render";
 import { numberReferences } from "./roles";
+import {
+  requestsAdditionalPerson,
+  requestsVocalizations,
+  requestsWardrobeChange,
+} from "./intent";
 import type { Finding, H3Mode, Project } from "./types";
 
 /**
@@ -49,6 +54,9 @@ const MODEL_FIXABLE = new Set([
   "reference.pictureAsSubject",
   "dialogue.parenthetical",
   "section.empty",
+  "intent.wardrobeConflict",
+  "intent.peopleConflict",
+  "intent.audioConflict",
 ]);
 
 export function isModelFixable(finding: Finding): boolean {
@@ -99,11 +107,74 @@ export function validatePrompt(prompt: string, project: Project, mode: H3Mode): 
   checkTransitionTags(prompt, push);
   checkReferenceTags(prompt, definitions, detailed, mode, push);
   checkDensity(project, push);
+  checkRequestConsistency(prompt, project, push);
 
   return findings.sort((a, b) => {
     if (a.severity !== b.severity) return a.severity === "error" ? -1 : 1;
     return (a.offset ?? 0) - (b.offset ?? 0);
   });
+}
+
+// ---- request consistency ------------------------------------------------------
+
+/** Catch direct semantic oppositions that structural H3 validation cannot see. */
+function checkRequestConsistency(
+  prompt: string,
+  project: Project,
+  push: (finding: Finding) => void,
+): void {
+  if (requestsWardrobeChange(project.brief)) {
+    const conflict =
+      /\b(?:no wardrobe change occurs|remains? in the exact same outfit|source (?:clothes|clothing|wardrobe|outfit) remains?|preserv\w* the source (?:clothes|clothing|wardrobe|outfit))\b/i.exec(
+        prompt,
+      );
+    if (conflict) {
+      push({
+        severity: "error",
+        rule: "intent.wardrobeConflict",
+        section: "brief",
+        offset: conflict.index,
+        length: conflict[0].length,
+        message:
+          "La solicitud cambia o elimina el vestuario, pero el prompt también ordena conservar el atuendo de la referencia.",
+      });
+    }
+  }
+
+  if (requestsAdditionalPerson(project.brief)) {
+    const conflict = /\b(?:exactly one person is visible|sole visible person|no additional people appear)\b/i.exec(
+      prompt,
+    );
+    if (conflict) {
+      push({
+        severity: "error",
+        rule: "intent.peopleConflict",
+        section: "brief",
+        offset: conflict.index,
+        length: conflict[0].length,
+        message:
+          "La solicitud incluye otra persona o una pareja, pero el prompt limita la escena a una sola persona visible.",
+      });
+    }
+  }
+
+  if (requestsVocalizations(project.brief)) {
+    const conflict =
+      /\b(?:no (?:distinct )?(?:dialogue or )?vocalizations|without vocalizations|no (?:moans?|moaning|groans?|groaning))\b/i.exec(
+        prompt,
+      );
+    if (conflict) {
+      push({
+        severity: "error",
+        rule: "intent.audioConflict",
+        section: "overall_soundscape",
+        offset: conflict.index,
+        length: conflict[0].length,
+        message:
+          "La solicitud pide vocalizaciones, pero el soundscape las prohíbe.",
+      });
+    }
+  }
 }
 
 // ---- sections ----------------------------------------------------------------

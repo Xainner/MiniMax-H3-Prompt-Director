@@ -1,3 +1,5 @@
+import type { MaestroRunDraft } from "@/core/maestro/types";
+
 /**
  * Domain model for MiniMax H3 prompting.
  *
@@ -92,6 +94,11 @@ export interface ReferenceItem {
 /** Reusable visible content (§4). One subject may draw on several references. */
 export interface SubjectDef {
   id: string;
+  /**
+   * Reference that owns this Subject's lifecycle when the store created it
+   * automatically. Undefined means the Subject is user-managed.
+   */
+  managedSourceRefId?: string;
   /** Human name used in the UI only, e.g. "Laura". Never emitted verbatim. */
   label: string;
   /** What this subject *is*, in English. e.g. "the young woman". */
@@ -176,6 +183,8 @@ export interface Project {
   shots: ShotDef[];
   dialogue: DialogueLine[];
   multiWindow: MultiWindowConfig;
+  /** Optional Maestro execution recipe. Old/offline projects omit it. */
+  maestro?: MaestroRunDraft;
   /** Last rendered prompt, kept so reopening a project shows the result. */
   lastPrompt?: string;
   lastWindows?: string[];

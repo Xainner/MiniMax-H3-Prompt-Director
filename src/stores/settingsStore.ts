@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { MaestroInstance, MaestroTestResult } from "@/core/maestro/types";
 import { errorMessage, ipc, type Profile, type SettingsView, type TestResult } from "@/lib/ipc";
 
 interface SettingsState {
@@ -7,6 +8,9 @@ interface SettingsState {
   error: string | null;
   testing: Record<string, boolean>;
   lastTest: Record<string, TestResult | undefined>;
+  maestroInstances: MaestroInstance[];
+  maestroTesting: Record<string, boolean>;
+  maestroTests: Record<string, MaestroTestResult | undefined>;
 
   load: () => Promise<void>;
   saveProfile: (profile: Profile) => Promise<void>;
@@ -14,6 +18,9 @@ interface SettingsState {
   clearApiKey: (profileId: string) => Promise<void>;
   copyApiKey: (from: string, to: string) => Promise<void>;
   test: (profile: Profile, key?: string) => Promise<TestResult>;
+  saveMaestroInstance: (instance: MaestroInstance) => Promise<void>;
+  deleteMaestroInstance: (id: string) => Promise<void>;
+  testMaestroInstance: (instance: MaestroInstance) => Promise<MaestroTestResult>;
 }
 
 export const useSettings = create<SettingsState>((set, get) => ({
@@ -22,11 +29,18 @@ export const useSettings = create<SettingsState>((set, get) => ({
   error: null,
   testing: {},
   lastTest: {},
+  maestroInstances: [],
+  maestroTesting: {},
+  maestroTests: {},
 
   load: async () => {
     set({ loading: true, error: null });
     try {
-      set({ settings: await ipc.getSettings(), loading: false });
+      const [settings, maestroInstances] = await Promise.all([
+        ipc.getSettings(),
+        ipc.listMaestroInstances(),
+      ]);
+      set({ settings, maestroInstances, loading: false });
     } catch (e) {
       set({ error: errorMessage(e), loading: false });
     }
@@ -62,6 +76,33 @@ export const useSettings = create<SettingsState>((set, get) => ({
       set({
         lastTest: { ...get().lastTest, [profile.id]: result },
         testing: { ...get().testing, [profile.id]: false },
+      });
+      return result;
+    }
+  },
+
+  saveMaestroInstance: async (instance) => {
+    set({ maestroInstances: await ipc.saveMaestroInstance(instance) });
+  },
+
+  deleteMaestroInstance: async (id) => {
+    set({ maestroInstances: await ipc.deleteMaestroInstance(id) });
+  },
+
+  testMaestroInstance: async (instance) => {
+    set({ maestroTesting: { ...get().maestroTesting, [instance.id]: true } });
+    try {
+      const result = await ipc.testMaestroInstance(instance);
+      set({
+        maestroTests: { ...get().maestroTests, [instance.id]: result },
+        maestroTesting: { ...get().maestroTesting, [instance.id]: false },
+      });
+      return result;
+    } catch (error) {
+      const result: MaestroTestResult = { ok: false, latencyMs: 0, message: errorMessage(error) };
+      set({
+        maestroTests: { ...get().maestroTests, [instance.id]: result },
+        maestroTesting: { ...get().maestroTesting, [instance.id]: false },
       });
       return result;
     }

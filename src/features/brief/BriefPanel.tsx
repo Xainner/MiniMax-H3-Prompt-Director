@@ -153,7 +153,7 @@ export function BriefPanel() {
             <div className="space-y-0.5">
               <Label>Maestro multi-window</Label>
               <p className="text-[10.5px] leading-snug text-ink-faint">
-                Genera una línea por ventana, con estado final encadenado.
+                Genera una línea por ventana, con estado final encadenado. Este conteo es para uso offline; Preparar y enviar lo deriva de Maestro.
               </p>
             </div>
             <Switch
@@ -167,12 +167,12 @@ export function BriefPanel() {
               <Field label="Ventanas">
                 <Input
                   type="number"
-                  min={2}
-                  max={8}
+                  min={1}
+                  max={99}
                   value={multiWindow.windows}
                   onChange={(e) =>
                     patchMultiWindow({
-                      windows: Math.min(8, Math.max(2, Number(e.target.value) || 2)),
+                      windows: Math.min(99, Math.max(1, Number(e.target.value) || 1)),
                     })
                   }
                   className="tnum w-16"

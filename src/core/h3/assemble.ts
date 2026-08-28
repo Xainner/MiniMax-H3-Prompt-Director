@@ -1,5 +1,10 @@
 import { MODE_LABELS, numberReferences, roleMeta, taskPrefixes } from "./roles";
 import {
+  requestsWardrobeChange,
+  subjectAttributesForPrompt,
+  subjectRetentionForPrompt,
+} from "./intent";
+import {
   assignSpeakers,
   constraintBlocks,
   effectiveSubjects,
@@ -32,6 +37,15 @@ export function buildWriterBrief(project: Project, mode: H3Mode): string {
   push(brief.idea.trim() || "(no idea supplied — build a coherent short video from the references)");
   push();
 
+  const wardrobeChange = requestsWardrobeChange(brief);
+  if (wardrobeChange) {
+    push("USER-REQUESTED SUBJECT TRANSFORMATION — HIGHEST PRIORITY:");
+    push(
+      "Preserve the referenced person's identity, but DO NOT preserve the source wardrobe or accessories. The source outfit is observational context only. Apply the user's requested appearance from the first frame and never describe the source clothes as still worn, preserved, or unchanged.",
+    );
+    push();
+  }
+
   if (brief.styleNote.trim()) {
     push("REQUESTED STYLE / TONE:");
     push(brief.styleNote.trim());
@@ -45,21 +59,26 @@ export function buildWriterBrief(project: Project, mode: H3Mode): string {
     for (const ref of project.references) {
       const meta = roleMeta(ref.role);
       const tag = numbering.tag[ref.id] ?? "<?>";
-      push(`- ${tag} — role: ${ref.role} (${meta.label}) — retention: ${ref.retention}`);
+      const identityOnly = wardrobeChange && ref.role === "identity";
+      push(
+        `- ${tag} — role: ${ref.role} (${meta.label}) — retention: ${identityOnly ? "identity only; source wardrobe excluded" : ref.retention}`,
+      );
       if (ref.note.trim()) push(`    note: ${ref.note.trim()}`);
       const a = ref.analysis;
       if (a) {
-        if (a.summary) push(`    seen: ${a.summary}`);
         if (a.identity) push(`    identity: ${a.identity}`);
-        if (a.wardrobe) push(`    wardrobe: ${a.wardrobe}`);
-        if (a.environment) push(`    environment: ${a.environment}`);
-        if (a.lighting) push(`    lighting: ${a.lighting}`);
-        if (a.composition) push(`    composition: ${a.composition}`);
-        if (a.style) push(`    style: ${a.style}`);
-        if (a.palette.length) push(`    palette: ${a.palette.join(", ")}`);
-        if (a.objects.length) push(`    objects: ${a.objects.join(", ")}`);
-        if (a.visibleText.length) {
-          push(`    text visible in the reference: ${a.visibleText.map((t) => `"${t}"`).join(", ")}`);
+        if (!identityOnly) {
+          if (a.summary) push(`    seen: ${a.summary}`);
+          if (a.wardrobe) push(`    wardrobe: ${a.wardrobe}`);
+          if (a.environment) push(`    environment: ${a.environment}`);
+          if (a.lighting) push(`    lighting: ${a.lighting}`);
+          if (a.composition) push(`    composition: ${a.composition}`);
+          if (a.style) push(`    style: ${a.style}`);
+          if (a.palette.length) push(`    palette: ${a.palette.join(", ")}`);
+          if (a.objects.length) push(`    objects: ${a.objects.join(", ")}`);
+          if (a.visibleText.length) {
+            push(`    text visible in the reference: ${a.visibleText.map((t) => `"${t}"`).join(", ")}`);
+          }
         }
       }
     }
@@ -74,10 +93,12 @@ export function buildWriterBrief(project: Project, mode: H3Mode): string {
     subjects.forEach((s, i) => {
       const sources = s.sourceRefIds.map((id) => numbering.tag[id] ?? "<?>").join(", ");
       const speaker = speakers.get(s.id);
+      const retention = subjectRetentionForPrompt(project, s);
+      const attributes = subjectAttributesForPrompt(project, s);
       push(
-        `- ${subjectTag(i)} = ${s.description || s.label}${sources ? ` (from ${sources})` : ""} — retention: ${s.retention}${speaker ? ` — speaker id: (${speaker})` : " — does not speak"}`,
+        `- ${subjectTag(i)} = ${s.description || s.label}${sources ? ` (from ${sources})` : ""} — retention: ${retention}${speaker ? ` — speaker id: (${speaker})` : " — does not speak"}`,
       );
-      if (s.attributes.trim()) push(`    preserve: ${s.attributes.trim()}`);
+      if (attributes) push(`    preserve: ${attributes}`);
     });
   }
   push();

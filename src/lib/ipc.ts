@@ -1,6 +1,15 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { MediaKind, VisionAnalysis } from "@/core/h3/types";
+import type {
+  MaestroInstance,
+  MaestroJob,
+  MaestroLora,
+  MaestroModel,
+  MaestroModelCapabilities,
+  MaestroTestResult,
+  MaestroUpload,
+} from "@/core/maestro/types";
 
 /** Mirrors `settings::Profile`. The API key is never part of this shape. */
 export interface Profile {
@@ -100,6 +109,35 @@ export const ipc = {
   addHistory: (id: string, projectId: string, mode: string, content: string) =>
     invoke<void>("add_history", { id, projectId, mode, content }),
   listHistory: (projectId: string) => invoke<HistoryEntry[]>("list_history", { projectId }),
+
+  listMaestroInstances: () => invoke<MaestroInstance[]>("list_maestro_instances"),
+  saveMaestroInstance: (instance: MaestroInstance) =>
+    invoke<MaestroInstance[]>("save_maestro_instance", { instance }),
+  deleteMaestroInstance: (id: string) =>
+    invoke<MaestroInstance[]>("delete_maestro_instance", { id }),
+  testMaestroInstance: (instance: MaestroInstance) =>
+    invoke<MaestroTestResult>("test_maestro_instance", { instance }),
+  maestroModels: (instanceId: string) =>
+    invoke<MaestroModel[]>("maestro_models", { instanceId }),
+  maestroModelCapabilities: (instanceId: string, modelType: string) =>
+    invoke<MaestroModelCapabilities>("maestro_model_capabilities", { instanceId, modelType }),
+  maestroLoras: (instanceId: string, modelType: string) =>
+    invoke<MaestroLora[]>("maestro_loras", { instanceId, modelType }),
+  maestroUpload: (instanceId: string, path: string) =>
+    invoke<MaestroUpload>("maestro_upload", { instanceId, path }),
+  maestroGenerate: (instanceId: string, projectId: string, payload: Record<string, unknown>) =>
+    invoke<MaestroJob>("maestro_generate", { instanceId, projectId, payload }),
+  maestroJobStatus: (instanceId: string, projectId: string, jobId: string) =>
+    invoke<MaestroJob>("maestro_job_status", { instanceId, projectId, jobId }),
+  maestroCancelJob: (instanceId: string, jobId: string) =>
+    invoke<void>("maestro_cancel_job", { instanceId, jobId }),
+  listMaestroJobs: () => invoke<MaestroJob[]>("list_maestro_jobs"),
+  maestroDownloadOutput: (instanceId: string, filename: string, destination?: string) =>
+    invoke<string>("maestro_download_output", {
+      instanceId,
+      filename,
+      destination: destination ?? null,
+    }),
 };
 
 export interface StreamChunk {

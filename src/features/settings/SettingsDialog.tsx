@@ -6,7 +6,10 @@ import {
   EyeOff,
   KeyRound,
   Loader2,
+  Plus,
+  Server,
   ShieldAlert,
+  Trash2,
   XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -25,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/overlays";
 import { errorMessage, type Profile } from "@/lib/ipc";
+import type { MaestroInstance } from "@/core/maestro/types";
 import { cn } from "@/lib/utils";
 import { isProfileUsable, useSettings } from "@/stores/settingsStore";
 import { useUi, type SettingsTab } from "@/stores/uiStore";
@@ -44,6 +48,7 @@ export function SettingsDialog() {
   const tab = useUi((s) => s.settingsTab);
   const setUi = useUi((s) => s.set);
   const settings = useSettings((s) => s.settings);
+  const maestroInstances = useSettings((s) => s.maestroInstances);
   const load = useSettings((s) => s.load);
 
   useEffect(() => {
@@ -71,6 +76,10 @@ export function SettingsDialog() {
               <TabsTrigger value="writer">
                 Mejora de prompt
                 <PendingDot show={!isProfileUsable(settings.writer)} />
+              </TabsTrigger>
+              <TabsTrigger value="maestro">
+                Maestro
+                <PendingDot show={maestroInstances.length === 0} />
               </TabsTrigger>
               <TabsTrigger value="cache">Caché</TabsTrigger>
             </TabsList>
@@ -109,6 +118,9 @@ export function SettingsDialog() {
                   copyFrom={isProfileUsable(settings.vision) ? settings.vision : undefined}
                 />
               </TabsContent>
+              <TabsContent value="maestro" className="p-4">
+                <MaestroInstancesTab />
+              </TabsContent>
               <TabsContent value="cache" className="p-4">
                 <CacheTab />
               </TabsContent>
@@ -131,6 +143,83 @@ export function SettingsDialog() {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function MaestroInstancesTab() {
+  const instances = useSettings((s) => s.maestroInstances);
+  const saveInstance = useSettings((s) => s.saveMaestroInstance);
+  const deleteInstance = useSettings((s) => s.deleteMaestroInstance);
+  const testInstance = useSettings((s) => s.testMaestroInstance);
+  const testing = useSettings((s) => s.maestroTesting);
+  const tests = useSettings((s) => s.maestroTests);
+  const [draft, setDraft] = useState<MaestroInstance | null>(null);
+
+  function add() {
+    setDraft({ id: crypto.randomUUID(), name: "Nueva instancia", baseUrl: "http://localhost:7860" });
+  }
+
+  async function saveDraft() {
+    if (!draft) return;
+    try {
+      await saveInstance(draft);
+      setDraft(null);
+      toast.success("Instancia Maestro guardada");
+    } catch (error) {
+      toast.error("No se pudo guardar", { description: errorMessage(error) });
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[12px] font-medium text-ink">Instancias Maestro</p>
+          <p className="mt-0.5 max-w-[58ch] text-[10.5px] leading-snug text-ink-faint">
+            Guardá varias URL o IP. El modelo, las LoRAs, los uploads y cada trabajo permanecen ligados a la instancia elegida.
+          </p>
+        </div>
+        <Button variant="outline" size="md" onClick={add}><Plus />Agregar</Button>
+      </div>
+
+      {instances.map((instance) => {
+        const result = tests[instance.id];
+        return (
+          <div key={instance.id} className="rounded-lg border border-line bg-base/50 p-3">
+            <div className="flex items-center gap-2">
+              <Server className="size-3.5 text-amber" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[11.5px] text-ink">{instance.name}</p>
+                <p className="truncate font-mono text-[10px] text-ink-faint">{instance.baseUrl}</p>
+              </div>
+              <Button variant="ghost" size="sm" disabled={testing[instance.id]} onClick={() => void testInstance(instance)}>
+                {testing[instance.id] ? <Loader2 className="animate-spin" /> : null}Probar
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setDraft(instance)}>Editar</Button>
+              <Button variant="ghost" size="icon-sm" className="text-danger" onClick={() => void deleteInstance(instance.id)}><Trash2 /></Button>
+            </div>
+            {result ? <p className={`mt-2 text-[10.5px] ${result.ok ? "text-ok" : "text-danger"}`}>{result.message}{result.ok ? ` · ${result.latencyMs} ms` : ""}</p> : null}
+          </div>
+        );
+      })}
+
+      {instances.length === 0 && !draft ? (
+        <div className="rounded-lg border border-dashed border-line p-6 text-center text-[11px] text-ink-faint">
+          No hay instancias configuradas. Director seguirá funcionando en modo offline.
+        </div>
+      ) : null}
+
+      {draft ? (
+        <div className="space-y-3 rounded-lg border border-amber/40 bg-amber/5 p-3">
+          <Field label="Nombre"><Input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></Field>
+          <Field label="URL o IP" hint="Incluí http:// o https:// y el puerto de Maestro."><Input value={draft.baseUrl} placeholder="http://192.0.2.10:7860" onChange={(event) => setDraft({ ...draft, baseUrl: event.target.value })} /></Field>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="md" onClick={() => setDraft(null)}>Cancelar</Button>
+            <Button variant="outline" size="md" disabled={!draft.name.trim() || !draft.baseUrl.trim()} onClick={() => void saveDraft()}>Guardar</Button>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

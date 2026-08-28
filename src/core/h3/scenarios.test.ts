@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { buildWriterBrief } from "./assemble";
 import { renderWindows, validateWindows } from "./multiWindow";
 import { renderPrompt } from "./render";
 import { detectMode, numberReferences, taskPrefixes } from "./roles";
@@ -460,18 +461,58 @@ describe("§32–§34 — identity, wardrobe and duplicated people", () => {
     expect(prompt).toContain("No wardrobe change occurs.");
   });
 
-  it("forbids cloned or background duplicates, counting the actual people", () => {
+  it("forbids cloned subjects without treating Subject count as total people", () => {
     const { prompt } = render(project);
-    expect(prompt).toContain("Exactly one person is visible in the entire video: <Subject 1>.");
+    expect(prompt).not.toContain("Exactly one person is visible");
     expect(prompt).toContain("There is exactly one instance of <Subject 1>.");
 
     const two = makeProject({
       subjects: [makeSubject({ id: "a" }), makeSubject({ id: "b", label: "Luis" })],
       dialogue: [],
     });
+    expect(render(two).prompt).not.toContain("Exactly two people are visible");
     expect(render(two).prompt).toContain(
-      "Exactly two people are visible in the entire video: <Subject 1> and <Subject 2>.",
+      "There is exactly one instance of each of <Subject 1> and <Subject 2>.",
     );
+  });
+
+  it("preserves identity but unlocks source wardrobe when the request changes it", () => {
+    const changed = makeProject({
+      brief: makeBrief({
+        idea: "Conserva su identidad, pero sin bikini y con un atuendo completamente nuevo.",
+      }),
+      references: [
+        makeReference({
+          analysis: {
+            summary: "A woman wearing a pink bikini.",
+            subjectType: "person",
+            identity: "long dark hair, brown eyes, and a soft jawline",
+            wardrobe: "hot pink triangle bikini top",
+            objects: [],
+            environment: "bedroom",
+            lighting: "soft natural light",
+            palette: ["pink"],
+            composition: "portrait",
+            style: "photorealistic",
+            visibleText: [],
+            h3AttributeLine: "long dark hair, brown eyes, hot pink triangle bikini top",
+          },
+        }),
+      ],
+      subjects: [
+        makeSubject({ attributes: "long dark hair, brown eyes, hot pink triangle bikini top" }),
+      ],
+      dialogue: [],
+    });
+
+    const { prompt } = render(changed);
+    const writerBrief = buildWriterBrief(changed, "full-reference");
+    expect(prompt).toContain("<Subject 1> is the young woman from <Picture 1>, preserving long dark hair, brown eyes, and a soft jawline; exact facial identity");
+    expect(prompt).toContain("partially_preserved - preserve exact facial identity");
+    expect(prompt).not.toContain("hot pink triangle bikini top");
+    expect(prompt).not.toContain("No wardrobe change occurs.");
+    expect(writerBrief).toContain("source wardrobe excluded");
+    expect(writerBrief).not.toContain("hot pink triangle bikini top");
   });
 
   it("can be turned off for footage where people should vary", () => {
